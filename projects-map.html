@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>פרויקטים שהושלמו – זאבי אדריכלות</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #3a5068;
+      --primary-light: #4e6a85;
+      --bg: #f5f3f0;
+      --surface: #ffffff;
+      --text: #1a1a1a;
+      --text-muted: #6b7280;
+      --border: #e5e0d8;
+      --font: 'Rubik', sans-serif;
+      --radius: 10px;
+
+      /* Category colors */
+      --c-shimur:   #b5451b;
+      --c-urban:    #3a5068;
+      --c-tiyud:    #6b4f8a;
+      --c-biniya:   #2e7d52;
+      --c-shiputs:  #c47c1a;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .nav-brand img {
+      height: 40px;
+      width: 40px;
+      object-fit: contain;
+      border-radius: 6px;
+    }
+    .nav-title {
+      display: flex;
+      flex-direction: column;
+    }
+    .nav-title strong {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .nav-title span {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    .nav-back {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      text-decoration: none;
+      color: var(--primary);
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .nav-back:hover { background: var(--primary); color: #fff; }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+    }
+    .page-header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .page-header p {
+      font-size: 0.95rem;
+      opacity: 0.8;
+    }
+
+    /* ── FILTERS ── */
+    .filters-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .filters-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-left: 0.5rem;
+    }
+    .filter-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background: var(--bg);
+      font-family: var(--font);
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.18s;
+      color: var(--text);
+    }
+    .filter-btn .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .filter-btn .count {
+      background: rgba(0,0,0,0.1);
+      border-radius: 999px;
+      padding: 0 6px;
+      font-size: 0.72rem;
+    }
+    .filter-btn.active {
+      border-color: currentColor;
+      background: var(--surface);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .filter-btn[data-type="all"] { color: var(--primary); }
+    .filter-btn[data-type="all"].active { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .filter-btn[data-type="all"].active .count { background: rgba(255,255,255,0.2); }
+
+    .filter-btn[data-type="שימור מבנים ואתרים"] { color: var(--c-shimur); }
+    .filter-btn[data-type="תכנון עירוני"]        { color: var(--c-urban); }
+    .filter-btn[data-type="תיעוד וסקר"]          { color: var(--c-tiyud); }
+    .filter-btn[data-type="בניה חדשה"]           { color: var(--c-biniya); }
+    .filter-btn[data-type="שיפוץ והתחדשות"]      { color: var(--c-shiputs); }
+
+    .filter-btn[data-type="שימור מבנים ואתרים"].active { background: var(--c-shimur); color: #fff; border-color: var(--c-shimur); }
+    .filter-btn[data-type="תכנון עירוני"].active        { background: var(--c-urban);  color: #fff; border-color: var(--c-urban); }
+    .filter-btn[data-type="תיעוד וסקר"].active          { background: var(--c-tiyud);  color: #fff; border-color: var(--c-tiyud); }
+    .filter-btn[data-type="בניה חדשה"].active           { background: var(--c-biniya); color: #fff; border-color: var(--c-biniya); }
+    .filter-btn[data-type="שיפוץ והתחדשות"].active      { background: var(--c-shiputs);color: #fff; border-color: var(--c-shiputs); }
+
+    /* ── MAIN LAYOUT ── */
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── MAP ── */
+    #map {
+      flex: 1;
+      min-height: 600px;
+      z-index: 1;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 320px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-header {
+      padding: 1rem 1.2rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-header h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .sidebar-count {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .project-list {
+      overflow-y: auto;
+      flex: 1;
+      padding: 0.5rem 0;
+    }
+    .project-item {
+      padding: 0.75rem 1.2rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      display: flex;
+      gap: 0.7rem;
+      align-items: flex-start;
+    }
+    .project-item:hover { background: var(--bg); }
+    .project-item.active { background: #eef2f6; }
+    .project-item .item-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+    .project-item .item-info { flex: 1; min-width: 0; }
+    .project-item .item-name {
+      font-size: 0.83rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text);
+    }
+    .project-item .item-address {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .project-item .item-type {
+      font-size: 0.68rem;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* ── LEGEND ── */
+    .legend {
+      padding: 0.75rem 1.2rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .legend-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .legend-items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.76rem;
+      color: var(--text);
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── LEAFLET POPUP ── */
+    .leaflet-popup-content-wrapper {
+      font-family: var(--font) !important;
+      border-radius: 10px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+      direction: rtl;
+    }
+    .popup-content { padding: 2px; }
+    .popup-type {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .popup-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #1a1a1a;
+      line-height: 1.4;
+      margin-bottom: 4px;
+    }
+    .popup-address {
+      font-size: 0.78rem;
+      color: #6b7280;
+    }
+
+    /* ── CUSTOM MARKERS ── */
+    .marker-pin {
+      width: 28px;
+      height: 28px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      border: 2px solid rgba(255,255,255,0.8);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .marker-pin::after {
+      content: '';
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      position: absolute;
+      top: 7px;
+      right: 7px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .main { flex-direction: column; }
+      .sidebar { width: 100%; height: 280px; border-right: none; border-top: 1px solid var(--border); }
+      #map { min-height: 400px; }
+      .filters-bar { padding: 0.75rem 1rem; }
+      .page-header { padding: 1.5rem 1rem 1rem; }
+      .page-header h1 { font-size: 1.4rem; }
+    }
+
+    /* scrollbar */
+    .project-list::-webkit-scrollbar { width: 4px; }
+    .project-list::-webkit-scrollbar-track { background: transparent; }
+    .project-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .footer-credit {
+      text-align: center;
+      padding: 0.75rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+    .footer-credit a { color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <a href="./index.html" class="nav-brand">
+    <img src="./assets/logo.jpg" alt="זאבי אדריכלות לוגו" />
+    <div class="nav-title">
+      <strong>זאבי אדריכלות</strong>
+      <span>אדריכלות ותכנון עירוני</span>
+    </div>
+  </a>
+  <a href="./index.html" class="nav-back">
+    ← חזרה לאתר
+  </a>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <h1>פרויקטים שהושלמו</h1>
+  <p>מיפוי עבודות בפריסה ארצית — לחצו על סמן למידע נוסף</p>
+</div>
+
+<!-- FILTERS -->
+<div class="filters-bar">
+  <span class="filters-label">סינון:</span>
+  <button class="filter-btn active" data-type="all">
+    <span>הכל</span>
+    <span class="count" id="count-all">71</span>
+  </button>
+  <button class="filter-btn" data-type="שימור מבנים ואתרים">
+    <span class="dot" style="background:var(--c-shimur)"></span>
+    <span>שימור מבנים ואתרים</span>
+    <span class="count" id="count-shimur"></span>
+  </button>
+  <button class="filter-btn" data-type="תכנון עירוני">
+    <span class="dot" style="background:var(--c-urban)"></span>
+    <span>תכנון עירוני</span>
+    <span class="count" id="count-urban"></span>
+  </button>
+  <button class="filter-btn" data-type="תיעוד וסקר">
+    <span class="dot" style="background:var(--c-tiyud)"></span>
+    <span>תיעוד וסקר</span>
+    <span class="count" id="count-tiyud"></span>
+  </button>
+  <button class="filter-btn" data-type="בניה חדשה">
+    <span class="dot" style="background:var(--c-biniya)"></span>
+    <span>בניה חדשה</span>
+    <span class="count" id="count-biniya"></span>
+  </button>
+  <button class="filter-btn" data-type="שיפוץ והתחדשות">
+    <span class="dot" style="background:var(--c-shiputs)"></span>
+    <span>שיפוץ והתחדשות</span>
+    <span class="count" id="count-shiputs"></span>
+  </button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div id="map"></div>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>רשימת פרויקטים</h2>
+      <div class="sidebar-count" id="sidebar-count"></div>
+    </div>
+    <div class="project-list" id="project-list"></div>
+    <div class="legend">
+      <div class="legend-title">מקרא</div>
+      <div class="legend-items">
+        <div class="legend-item"><span class="legend-dot" style="background:var(--c-shimur)"></span> שימור מבנים ואתרים</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--c-urban)"></span> תכנון עירוני</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--c-tiyud)"></span> תיעוד וסקר</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--c-biniya)"></span> בניה חדשה</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--c-shiputs)"></span> שיפוץ והתחדשות</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="footer-credit">
+  <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a>
+</div>
+
+<script>
+const PROJECTS = [
+  {"name":"מתחם לשימור חדווה-רשיש פתח תקווה","address":"חדווה רשיש 11 פתח תקווה","type":"שימור מבנים ואתרים","lat":32.0899,"lng":34.8836},
+  {"name":"מתחם השוק - הברון הירש פתח תקווה","address":"הברון הירש 13 פתח תקווה","type":"שימור מבנים ואתרים","lat":32.0876,"lng":34.8818},
+  {"name":"בית פרידמן","address":"הנדיב 29 הרצליה","type":"שימור מבנים ואתרים","lat":32.1678,"lng":34.8439},
+  {"name":"מועדון הקצינים הבריטי - כפר יונה","address":"רות דיין 13 כפר יונה","type":"שימור מבנים ואתרים","lat":32.3175,"lng":34.9378},
+  {"name":"שימור ומיגון מבנה - קרית ספר 7","address":"קרית ספר 7 תל אביב","type":"שימור מבנים ואתרים","lat":32.0822,"lng":34.7782},
+  {"name":"שימור ושיקום חזיתות בית בולדה","address":"ביאליק 3 תל אביב","type":"שימור מבנים ואתרים","lat":32.0757,"lng":34.7745},
+  {"name":"שימור מבנה מנדטורי - עכו","address":"בן עמי 19 עכו","type":"שימור מבנים ואתרים","lat":32.9287,"lng":35.0762},
+  {"name":"שימור מבנה היסטורי - הרצל 63 רמת גן","address":"הרצל 63 רמת גן","type":"שימור מבנים ואתרים","lat":32.0695,"lng":34.8203},
+  {"name":"שימור והשמשה מחדש - בית הדר","address":"דרך מנחם בגין 19 תל אביב","type":"שימור מבנים ואתרים","lat":32.0668,"lng":34.7823},
+  {"name":"בריכת האהבה הוד השרון","address":"דרך מגדיאל הוד השרון","type":"שימור מבנים ואתרים","lat":32.151,"lng":34.8794},
+  {"name":"מגדל המים הוד השרון","address":"דרך רמתיים הוד השרון","type":"שימור מבנים ואתרים","lat":32.148,"lng":34.8853},
+  {"name":"שימור אתר המבקרים ביה\"ק טרומפלדור","address":"טרומפלדור 43 תל אביב","type":"שימור מבנים ואתרים","lat":32.0712,"lng":34.7715},
+  {"name":"שימור ביה\"ק היהודי בעג'מי","address":"עג'מי יפו","type":"שימור מבנים ואתרים","lat":32.048,"lng":34.7492},
+  {"name":"בית הדר - שימור ושיקום חזיתות","address":"דרך מנחם בגין 19 תל אביב","type":"שימור מבנים ואתרים","lat":32.0672,"lng":34.7827},
+  {"name":"תיעוד בית שטרן - ממילא","address":"מדרחוב ממילא ירושלים","type":"שימור מבנים ואתרים","lat":31.7764,"lng":35.2255},
+  {"name":"שיקום ושימור חזיתות פינסקר 22","address":"פינסקר 22 תל אביב","type":"שימור מבנים ואתרים","lat":32.078,"lng":34.776},
+  {"name":"שיקום ושימור חזיתות מנדלסון 3+4+5","address":"מנדלסון 3 תל אביב","type":"שימור מבנים ואתרים","lat":32.0823,"lng":34.7846},
+  {"name":"שיקום ושימור חזיתות מיכה 2","address":"מיכה 2 תל אביב","type":"שימור מבנים ואתרים","lat":32.073,"lng":34.7771},
+  {"name":"שיקום ושימור חזיתות הנביאים 19","address":"הנביאים 19 תל אביב","type":"שימור מבנים ואתרים","lat":32.074,"lng":34.7736},
+  {"name":"שיקום ושימור חזיתות גורדון 20","address":"גורדון 20 תל אביב","type":"שימור מבנים ואתרים","lat":32.0826,"lng":34.7713},
+  {"name":"שיקום ושימור חזיתות ג'ורג' אליוט 10","address":"ג'ורג' אליוט 10 תל אביב","type":"שימור מבנים ואתרים","lat":32.0958,"lng":34.7866},
+  {"name":"תיעוד ותכנון שימור גאולה 24","address":"גאולה 24 תל אביב","type":"שימור מבנים ואתרים","lat":32.0788,"lng":34.773},
+  {"name":"סקר שימור לתמ\"א ביישובים בגליל","address":"פסוטה, גליל מערבי","type":"תכנון עירוני","lat":33.084,"lng":35.2228},
+  {"name":"נספח שימור - מתחם עתידות וארמון הפאשה","address":"אחד העם 23 עכו","type":"תכנון עירוני","lat":32.927,"lng":35.0748},
+  {"name":"נספח שימור - אזור תעסוקה בית ליד","address":"רות דיין 5 כפר יונה","type":"תכנון עירוני","lat":32.3172,"lng":34.9374},
+  {"name":"נספח שימור - אזור תעסוקה תנובות","address":"תלמים 1 תנובות","type":"תכנון עירוני","lat":32.36,"lng":34.94},
+  {"name":"נספח שימור לתכנית שכונת בורוכוב","address":"שכונת בורוכב לוד","type":"תכנון עירוני","lat":31.9485,"lng":34.8913},
+  {"name":"נספח שימור ותכנית בית הלורדים","address":"דרך הלורד תל מונד","type":"תכנון עירוני","lat":32.2716,"lng":34.9189},
+  {"name":"נספח שימור בית הפרדס","address":"תל מונד","type":"תכנון עירוני","lat":32.2720,"lng":34.9195},
+  {"name":"תכנית מפורטת - החווה החקלאית בת ים","address":"החווה החקלאית בת ים","type":"תכנון עירוני","lat":32.022,"lng":34.7523},
+  {"name":"תכנית מפורטת - מתחם הסוללים בת ים","address":"הסוללים בת ים","type":"תכנון עירוני","lat":32.0182,"lng":34.7491},
+  {"name":"תכנון רעיוני מתחם בית פלפוט","address":"הרצליה","type":"תכנון עירוני","lat":32.1624,"lng":34.8442},
+  {"name":"נספח שימור - נחמה 10 ראשון לציון","address":"נחמה 10 ראשון לציון","type":"תכנון עירוני","lat":31.9718,"lng":34.79},
+  {"name":"תיק תיעוד מלא נחמה 10","address":"נחמה 10 ראשון לציון","type":"תיעוד וסקר","lat":31.9722,"lng":34.7904},
+  {"name":"בית ברזילי","address":"הנביאים 29 תל אביב","type":"תיעוד וסקר","lat":32.0723,"lng":34.7741},
+  {"name":"סקר תיעוד בית אל על","address":"בן יהודה 32 תל אביב","type":"תיעוד וסקר","lat":32.0803,"lng":34.7702},
+  {"name":"סקר תיעוד פינסקר 22","address":"פינסקר 22 תל אביב","type":"תיעוד וסקר","lat":32.0783,"lng":34.7763},
+  {"name":"סקר תיעוד מנדלסון 3","address":"מנדלסון 3 תל אביב","type":"תיעוד וסקר","lat":32.0823,"lng":34.7846},
+  {"name":"סקר תיעוד מנדלסון 4","address":"מנדלסון 4 תל אביב","type":"תיעוד וסקר","lat":32.0821,"lng":34.7849},
+  {"name":"סקר תיעוד מנדלסון 5","address":"מנדלסון 5 תל אביב","type":"תיעוד וסקר","lat":32.0819,"lng":34.7852},
+  {"name":"תיק תיעוד בית אנגל","address":"רוטשילד 84 תל אביב","type":"תיעוד וסקר","lat":32.0645,"lng":34.7742},
+  {"name":"תיק תיעוד גן המושבה","address":"גן המושבה ראשון לציון","type":"תיעוד וסקר","lat":31.9622,"lng":34.7996},
+  {"name":"תיק תיעוד אלנבי 64","address":"אלנבי 64 תל אביב","type":"תיעוד וסקר","lat":32.0665,"lng":34.7718},
+  {"name":"תיק תיעוד ביה\"ס תחכמוני","address":"לילנבלום 7 תל אביב","type":"תיעוד וסקר","lat":32.0661,"lng":34.771},
+  {"name":"תיק תיעוד בית הכנסת הגר\"א","address":"הירקון תל אביב","type":"תיעוד וסקר","lat":32.0879,"lng":34.7718},
+  {"name":"תיק תיעוד אחד העם 30","address":"אחד העם 30 תל אביב","type":"תיעוד וסקר","lat":32.066,"lng":34.7724},
+  {"name":"תיק תיעוד בית הכנסת הגדול ומתחם הר סיני","address":"אלנבי תל אביב","type":"תיעוד וסקר","lat":32.0676,"lng":34.7722},
+  {"name":"תיק תיעוד היכל התרבות","address":"כיכר הבימה תל אביב","type":"תיעוד וסקר","lat":32.0749,"lng":34.7791},
+  {"name":"תיק תיעוד בית ליבלינג","address":"ביאליק תל אביב","type":"תיעוד וסקר","lat":32.0752,"lng":34.7748},
+  {"name":"תיק תיעוד בית הכנסת הראשון רעננה","address":"אחוזה רעננה","type":"תיעוד וסקר","lat":32.179,"lng":34.8706},
+  {"name":"תיעוד אנדרטה לקרל נטר","address":"מקווה ישראל","type":"תיעוד וסקר","lat":32.0533,"lng":34.8004},
+  {"name":"תיק תיעוד מבנה היסטורי באר שבע","address":"סמילנסקי 63 באר שבע","type":"תיעוד וסקר","lat":31.2449,"lng":34.7918},
+  {"name":"הקמת סניף פסטה פיורי","address":"הקניון הגדול פתח תקווה","type":"בניה חדשה","lat":32.0951,"lng":34.8819},
+  {"name":"גן אנתרופוסופי","address":"נווה עמל הוד השרון","type":"בניה חדשה","lat":32.149,"lng":34.889},
+  {"name":"בית טרבלסי","address":"הוד השרון","type":"בניה חדשה","lat":32.151,"lng":34.8837},
+  {"name":"בית אמסילי","address":"בת שלמה","type":"בניה חדשה","lat":32.5667,"lng":34.95},
+  {"name":"תכנון מתחם מגורים בית אריה","address":"בית אריה","type":"בניה חדשה","lat":32.035,"lng":35.054},
+  {"name":"תכנון וליווי מפעל אלסנאבל","address":"התעשייה 47 ערד","type":"שיפוץ והתחדשות","lat":31.26,"lng":35.215},
+  {"name":"תכנון וליווי מפעל סלע","address":"נאות חובב","type":"שיפוץ והתחדשות","lat":31.14,"lng":34.99},
+  {"name":"בית טאקו","address":"הוד השרון","type":"שיפוץ והתחדשות","lat":32.152,"lng":34.8835},
+  {"name":"בית דלומי","address":"הוד השרון","type":"שיפוץ והתחדשות","lat":32.153,"lng":34.8840},
+  {"name":"תכנון בית גוואטה","address":"מושב עדנים","type":"שיפוץ והתחדשות","lat":32.45,"lng":35.0167},
+  {"name":"משרדי חברת אדירים","address":"ראשון לציון","type":"שיפוץ והתחדשות","lat":31.973,"lng":34.7925},
+  {"name":"תכנון פנטהאוז","address":"רעננה","type":"שיפוץ והתחדשות","lat":32.1833,"lng":34.8667},
+  {"name":"שיפוץ וילה רמת החייל","address":"רמת החייל תל אביב","type":"שיפוץ והתחדשות","lat":32.105,"lng":34.8139},
+  {"name":"שיפוץ משרדי הנהלה - מדרשת בן גוריון","address":"מדרשת בן גוריון שדה בוקר","type":"שיפוץ והתחדשות","lat":30.8748,"lng":34.783},
+  {"name":"תכנית בינוי בצלאל באר שבע","address":"בצלאל באר שבע","type":"שיפוץ והתחדשות","lat":31.2539,"lng":34.7927},
+  {"name":"שיקום תחנת כבאות ראש העין","address":"ראש העין","type":"שיפוץ והתחדשות","lat":32.0948,"lng":34.9552},
+  {"name":"שיקום תחנת כבאות בני ברק","address":"בני ברק","type":"שיפוץ והתחדשות","lat":32.0833,"lng":34.8333},
+  {"name":"ליווי שיפוץ משרדי זיו-טקס","address":"פארק התעשיה קיסריה","type":"שיפוץ והתחדשות","lat":32.4992,"lng":34.9039}
+];
+
+const COLORS = {
+  "שימור מבנים ואתרים": "#b5451b",
+  "תכנון עירוני":        "#3a5068",
+  "תיעוד וסקר":          "#6b4f8a",
+  "בניה חדשה":           "#2e7d52",
+  "שיפוץ והתחדשות":      "#c47c1a"
+};
+
+const COUNT_IDS = {
+  "שימור מבנים ואתרים": "shimur",
+  "תכנון עירוני":        "urban",
+  "תיעוד וסקר":          "tiyud",
+  "בניה חדשה":           "biniya",
+  "שיפוץ והתחדשות":      "shiputs"
+};
+
+// Count per type
+const counts = {};
+PROJECTS.forEach(p => { counts[p.type] = (counts[p.type] || 0) + 1; });
+Object.entries(COUNT_IDS).forEach(([type, id]) => {
+  const el = document.getElementById('count-' + id);
+  if (el) el.textContent = counts[type] || 0;
+});
+
+// Init map
+const map = L.map('map', { zoomControl: true }).setView([32.05, 34.85], 8);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+// Create marker icon
+function makeIcon(color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
+    <path d="M14 0C6.27 0 0 6.27 0 14c0 9.625 14 22 14 22S28 23.625 28 14C28 6.27 21.73 0 14 0z" fill="${color}" stroke="white" stroke-width="2"/>
+    <circle cx="14" cy="14" r="5" fill="white" opacity="0.7"/>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [28, 36],
+    iconAnchor: [14, 36],
+    popupAnchor: [0, -36]
+  });
+}
+
+// State
+let activeFilter = 'all';
+let markers = [];
+let activeMarkerIdx = null;
+
+function getTypeLabel(type) {
+  return type;
+}
+
+function renderList(filtered) {
+  const list = document.getElementById('project-list');
+  const countEl = document.getElementById('sidebar-count');
+  countEl.textContent = `${filtered.length} פרויקטים`;
+  list.innerHTML = '';
+  filtered.forEach((p, i) => {
+    const item = document.createElement('div');
+    item.className = 'project-item';
+    item.dataset.idx = i;
+    item.innerHTML = `
+      <span class="item-dot" style="background:${COLORS[p.type]}"></span>
+      <div class="item-info">
+        <div class="item-name">${p.name}</div>
+        <div class="item-address">${p.address}</div>
+        <div class="item-type" style="color:${COLORS[p.type]}">${p.type}</div>
+      </div>`;
+    item.addEventListener('click', () => {
+      // Find real project index
+      const realIdx = PROJECTS.indexOf(p);
+      if (markers[realIdx]) {
+        map.setView([p.lat, p.lng], 15, { animate: true });
+        markers[realIdx].openPopup();
+      }
+      document.querySelectorAll('.project-item').forEach(el => el.classList.remove('active'));
+      item.classList.add('active');
+    });
+    list.appendChild(item);
+  });
+}
+
+function buildMarkers(filtered) {
+  // Clear old
+  markers.forEach(m => { if (m) map.removeLayer(m); });
+  markers = new Array(PROJECTS.length).fill(null);
+
+  filtered.forEach(p => {
+    const realIdx = PROJECTS.indexOf(p);
+    const color = COLORS[p.type];
+    const marker = L.marker([p.lat, p.lng], { icon: makeIcon(color) });
+    const popupHtml = `<div class="popup-content">
+      <div class="popup-type" style="color:${color}">${p.type}</div>
+      <div class="popup-name">${p.name}</div>
+      <div class="popup-address">📍 ${p.address}</div>
+    </div>`;
+    marker.bindPopup(popupHtml, { maxWidth: 260, className: 'custom-popup' });
+    marker.addTo(map);
+    markers[realIdx] = marker;
+  });
+}
+
+function applyFilter(type) {
+  activeFilter = type;
+  const filtered = type === 'all' ? PROJECTS : PROJECTS.filter(p => p.type === type);
+  buildMarkers(filtered);
+  renderList(filtered);
+
+  // Update counts display
+  const allCount = document.getElementById('count-all');
+  if (allCount) allCount.textContent = filtered.length;
+
+  // Fit bounds
+  if (filtered.length > 0) {
+    const latlngs = filtered.map(p => [p.lat, p.lng]);
+    map.fitBounds(latlngs, { padding: [40, 40] });
+  }
+}
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyFilter(btn.dataset.type);
+    // Restore count-all text
+    const allBtn = document.querySelector('.filter-btn[data-type="all"] .count');
+    if (allBtn) allBtn.textContent = btn.dataset.type === 'all' ? PROJECTS.length : (counts[btn.dataset.type] || 0);
+    document.getElementById('count-all').textContent = btn.dataset.type === 'all' ? PROJECTS.length : (counts[btn.dataset.type] || 0);
+  });
+});
+
+// Init
+applyFilter('all');
+document.getElementById('count-all').textContent = PROJECTS.length;
+</script>
+</body>
+</html>
