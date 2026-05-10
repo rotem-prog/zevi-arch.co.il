@@ -352,6 +352,62 @@
     .project-list::-webkit-scrollbar-track { background: transparent; }
     .project-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+    /* ── COLUMNS TABLE (All view) ── */
+    .columns-view {
+      display: none;
+      padding: 1.5rem 2rem 2rem;
+      background: var(--bg);
+      overflow-x: auto;
+    }
+    .columns-view.visible { display: block; }
+    .columns-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      min-width: 900px;
+    }
+    .col-header {
+      padding: 0.6rem 0.8rem;
+      border-radius: 8px 8px 0 0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #fff;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+    .col-body {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      overflow: hidden;
+    }
+    .col-item {
+      padding: 0.55rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.76rem;
+      line-height: 1.4;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .col-item:last-child { border-bottom: none; }
+    .col-item:hover { background: var(--bg); }
+    .col-item .col-item-name {
+      font-weight: 500;
+    }
+    .col-item .col-item-addr {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    @media (max-width: 768px) {
+      .columns-grid { grid-template-columns: repeat(2, 1fr); min-width: unset; }
+    }
+    @media (max-width: 480px) {
+      .columns-grid { grid-template-columns: 1fr; }
+    }
+
     .footer-credit {
       text-align: center;
       padding: 0.75rem;
@@ -439,6 +495,11 @@
       </div>
     </div>
   </aside>
+</div>
+
+<!-- COLUMNS VIEW -->
+<div class="columns-view" id="columns-view">
+  <div class="columns-grid" id="columns-grid"></div>
 </div>
 
 <div class="footer-credit">
@@ -575,6 +636,43 @@ function getTypeLabel(type) {
   return type;
 }
 
+const CATEGORY_ORDER = [
+  "שימור מבנים ואתרים",
+  "תכנון עירוני",
+  "תיעוד וסקר",
+  "בניה חדשה",
+  "שיפוץ והתחדשות"
+];
+
+function renderColumns() {
+  const grid = document.getElementById('columns-grid');
+  grid.innerHTML = '';
+  CATEGORY_ORDER.forEach(type => {
+    const color = COLORS[type];
+    const items = PROJECTS.filter(p => p.type === type);
+    const col = document.createElement('div');
+    col.innerHTML = `
+      <div class="col-header" style="background:${color}">${type}<br><span style="font-weight:400;opacity:0.85;font-size:0.7rem">${items.length} פרויקטים</span></div>
+      <div class="col-body" id="col-body-${type.replace(/\s/g,'_')}"></div>`;
+    grid.appendChild(col);
+    const body = col.querySelector('.col-body');
+    items.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'col-item';
+      item.innerHTML = `<div class="col-item-name">${p.name}</div><div class="col-item-addr">${p.address}</div>`;
+      item.addEventListener('click', () => {
+        const realIdx = PROJECTS.indexOf(p);
+        if (markers[realIdx]) {
+          map.setView([p.lat, p.lng], 15, { animate: true });
+          markers[realIdx].openPopup();
+          document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+      body.appendChild(item);
+    });
+  });
+}
+
 function renderList(filtered) {
   const list = document.getElementById('project-list');
   const countEl = document.getElementById('sidebar-count');
@@ -592,7 +690,6 @@ function renderList(filtered) {
         <div class="item-type" style="color:${COLORS[p.type]}">${p.type}</div>
       </div>`;
     item.addEventListener('click', () => {
-      // Find real project index
       const realIdx = PROJECTS.indexOf(p);
       if (markers[realIdx]) {
         map.setView([p.lat, p.lng], 15, { animate: true });
@@ -630,6 +727,15 @@ function applyFilter(type) {
   const filtered = type === 'all' ? PROJECTS : PROJECTS.filter(p => p.type === type);
   buildMarkers(filtered);
   renderList(filtered);
+
+  // Show/hide columns view
+  const colsView = document.getElementById('columns-view');
+  if (type === 'all') {
+    colsView.classList.add('visible');
+    renderColumns();
+  } else {
+    colsView.classList.remove('visible');
+  }
 
   // Update counts display
   const allCount = document.getElementById('count-all');
